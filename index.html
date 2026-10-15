@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>محول التاريخ الهجري</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:#0b1120;color:#fff;
+      font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;
+      min-height:100vh;display:flex;align-items:center;justify-content:center;
+      padding:24px
+    }
+    .app{width:min(560px,100%)}
+    h1{font-size:34px;margin:0 0 8px;text-align:center}
+    .sub{color:#94a3b8;text-align:center;margin-bottom:28px}
+    .card{
+      background:#111827;border:1px solid #273244;border-radius:22px;padding:20px;
+      box-shadow:0 18px 50px rgba(0,0,0,.25)
+    }
+    label{display:block;margin:14px 0 8px;color:#cbd5e1;font-weight:700}
+    input,select{
+      width:100%;padding:15px 14px;border-radius:14px;border:1px solid #334155;
+      background:#1e293b;color:#fff;font-size:18px;outline:none
+    }
+    input:focus,select:focus{border-color:#22c55e}
+    button{
+      width:100%;padding:15px;border:0;border-radius:14px;font-size:18px;
+      font-weight:800;cursor:pointer;margin-top:18px
+    }
+    .convert{background:#16a34a;color:white}
+    .copy{background:#263244;color:white;margin-top:10px}
+    .result{
+      margin-top:18px;background:#0f172a;border:1px solid #334155;border-radius:16px;
+      padding:18px;text-align:center;min-height:100px;display:flex;flex-direction:column;
+      justify-content:center;gap:8px
+    }
+    .big{font-size:30px;font-weight:900}
+    .long{color:#cbd5e1;font-size:18px}
+    .err{color:#fca5a5;font-weight:700}
+    .note{margin-top:14px;color:#64748b;font-size:13px;line-height:1.6;text-align:center}
+    .install{background:#334155;color:#fff;display:none}
+    @media (max-width:430px){
+      body{padding:14px}
+      h1{font-size:28px}
+      .card{padding:16px}
+      .big{font-size:26px}
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>📅 محول التاريخ الهجري</h1>
+    <div class="sub">هجري ← ميلادي بسرعة وبدون إعلانات</div>
+
+    <section class="card">
+      <label for="day">اليوم</label>
+      <input id="day" inputmode="numeric" placeholder="مثال: 5" min="1" max="30">
+
+      <label for="month">الشهر الهجري</label>
+      <select id="month">
+        <option value="1">محرم (1)</option>
+        <option value="2">صفر (2)</option>
+        <option value="3">ربيع الأول (3)</option>
+        <option value="4">ربيع الآخر (4)</option>
+        <option value="5">جمادى الأولى (5)</option>
+        <option value="6">جمادى الآخرة (6)</option>
+        <option value="7">رجب (7)</option>
+        <option value="8">شعبان (8)</option>
+        <option value="9" selected>رمضان (9)</option>
+        <option value="10">شوال (10)</option>
+        <option value="11">ذو القعدة (11)</option>
+        <option value="12">ذو الحجة (12)</option>
+      </select>
+
+      <label for="year">السنة الهجرية</label>
+      <input id="year" inputmode="numeric" placeholder="مثال: 1448">
+
+      <button class="convert" id="convert">تحويل إلى ميلادي</button>
+
+      <div class="result" id="result">
+        <div class="long">أدخل التاريخ الهجري ثم اضغط تحويل</div>
+      </div>
+
+      <button class="copy" id="copy" style="display:none">📋 نسخ النتيجة</button>
+      <button class="install" id="install">📲 تثبيت على الجوال</button>
+
+      <div class="note">
+        يعتمد على تقويم أم القرى الموجود في متصفح جهازك. قد تختلف بعض التواريخ الشرعية بحسب ثبوت الرؤية.
+      </div>
+    </section>
+  </main>
+
+<script>
+const monthsAr = ["","يناير","فبراير","مارس","أبريل","مايو","يونيو",
+                  "يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+
+const fmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {
+  year:"numeric", month:"numeric", day:"numeric", timeZone:"UTC"
+});
+
+function hijriParts(date){
+  const p = fmt.formatToParts(date);
+  const get = t => Number(p.find(x=>x.type===t)?.value);
+  return {y:get("year"), m:get("month"), d:get("day")};
+}
+
+function approxGregorianYear(hy){
+  return Math.floor(hy * 0.970224 + 621.5774);
+}
+
+function toGregorian(hy, hm, hd){
+  if(!Number.isInteger(hy)||!Number.isInteger(hm)||!Number.isInteger(hd)) return null;
+  if(hm<1||hm>12||hd<1||hd>30) return null;
+
+  const gy = approxGregorianYear(hy);
+  const start = Date.UTC(gy-1, 0, 1);
+  const end   = Date.UTC(gy+2, 11, 31);
+
+  for(let t=start; t<=end; t+=86400000){
+    const dt = new Date(t);
+    const h = hijriParts(dt);
+    if(h.y===hy && h.m===hm && h.d===hd) return dt;
+  }
+  return null;
+}
+
+function pad(n){ return String(n).padStart(2,"0"); }
+
+const result = document.getElementById("result");
+const copyBtn = document.getElementById("copy");
+let currentText = "";
+
+document.getElementById("convert").addEventListener("click", ()=>{
+  const d = Number(document.getElementById("day").value);
+  const m = Number(document.getElementById("month").value);
+  const y = Number(document.getElementById("year").value);
+
+  const g = toGregorian(y,m,d);
+  if(!g){
+    result.innerHTML = '<div class="err">تعذر تحويل التاريخ. تأكد من اليوم والشهر والسنة.</div>';
+    copyBtn.style.display="none";
+    return;
+  }
+
+  const gd = g.getUTCDate(), gm = g.getUTCMonth()+1, gy = g.getUTCFullYear();
+  const short = `${pad(gd)}/${pad(gm)}/${gy}`;
+  const long = `${gd} ${monthsAr[gm]} ${gy}`;
+
+  currentText = short + "\n" + long;
+  result.innerHTML = `<div class="big">${short}</div><div class="long">${long}</div>`;
+  copyBtn.style.display="block";
+});
+
+copyBtn.addEventListener("click", async ()=>{
+  try{
+    await navigator.clipboard.writeText(currentText);
+    copyBtn.textContent = "✅ تم النسخ";
+    setTimeout(()=>copyBtn.textContent="📋 نسخ النتيجة",1200);
+  }catch{
+    alert(currentText);
+  }
+});
+
+let deferredPrompt;
+const installBtn = document.getElementById("install");
+window.addEventListener("beforeinstallprompt", e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  installBtn.style.display="block";
+});
+installBtn.addEventListener("click", async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  installBtn.style.display="none";
+});
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>navigator.serviceWorker.register("sw.js"));
+}
+</script>
+</body>
+</html>
